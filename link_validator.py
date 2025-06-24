@@ -1,72 +1,73 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox
-import os
+from tkinter import filedialog, messagebox, scrolledtext
 import pandas as pd
 import re
-import requests
+from openpyxl import load_workbook
 
-def check_url_status(url):
+def check_contents(file_path, output_text):
+    valid_count = 0
+    invalid_count = 0
+    pattern = re.compile(r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+")
+    invalid_links = []
+
     try:
-        response = requests.head(url)
-        if response.status_code == 200:
-            return "Valid"
+        if file_path.endswith(('.csv', '.txt', '.xml', '.html')):
+            if file_path.endswith('.csv'):
+                df = pd.read_csv(file_path)
+                for column in df.columns:
+                    for index, value in df[column].iteritems():
+                        if pattern.match(str(value)):
+                            valid_count += 1
+                        else:
+                            invalid_count += 1
+                            invalid_links.append(f"Invalid link in {column} at row {index + 1}: {value}")
+            else:
+                with open(file_path, 'r', encoding='utf-8') as fd:
+                    for line_num, line in enumerate(fd, 1):
+                        if pattern.match(line.strip()):
+                            valid_count += 1
+                        else:
+                            invalid_count += 1
+                            invalid_links.append(f"Invalid link at line {line_num}: {line.strip()}")
+
+        elif file_path.endswith(('.xls', '.xlsx', '.xlsm', '.xlsb')):
+            wb = load_workbook(filename=file_path, read_only=True, data_only=True)
+            for sheet in wb.worksheets:
+                for row in sheet.iter_rows():
+                    for cell in row:
+                        if pattern.match(str(cell.value)):
+                            valid_count += 1
+                        else:
+                            invalid_count += 1
+                            invalid_links.append(f"Invalid link in {sheet.title} at cell {cell.coordinate}: {cell.value}")
+
+        output_text.insert(tk.END, f"Total valid links: {valid_count}\n")
+        output_text.insert(tk.END, f"Total invalid links: {invalid_count}\n")
+        if invalid_links:
+            output_text.insert(tk.END, "Invalid links found:\n")
+            for link in invalid_links:
+                output_text.insert(tk.END, f"{link}\n")
         else:
-            return "Invalid"
-    except requests.RequestException:
-        return "Error"
+            output_text.insert(tk.END, "No invalid links found.\n")
+    except Exception as e:
+        output_text.insert(tk.END, f"Error processing file: {e}\n")
 
-def validate_links(filename):
-    valid = False
-    with open(filename, "r") as file:
-        lines = file.readlines()
-    for line in lines:
-        if re.search(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', line):
-            valid = True  # Detection logic
-            print(f"Link Found: {line}")
-    if valid:
-        return "Contains Links"
+def upload_file_gui(output_text):
+    file_path = filedialog.askopenfilename(filetypes=[("All Files", "*.*")])
+    if file_path:
+        output_text.delete(1.0, tk.END)
+        check_contents(file_path, output_text)
     else:
-        return "No Links"
+        messagebox.showwarning("No file selected", "Please select a file to validate.")
 
-def validate_file(path):
-    print(f"Validating file: {path}")
-    if path.lower().endswith('.csv'):
-        df = pd.read_csv(path)
-        dfs_list = list(df.select_dtypes(include=[object]).columns)
-        for col in dfs_list:
-            if df[col].apply(validate_links).any():
-                print("Duplicates Listed in CSV")
-    else:
-        if os.path.logical_ex.include('link'):
-            print("Link Provided")
-    
-    return "File validated"
-
-def upload_file_gui():
-    filename = filedialog.askopenfilename(title="Select File")
-    validate_file(filename)
-
-def upload_folder_gui():
-    folder = filedialog.askdirectory()
-    for file in os.listdir(folder):
-        path_to_file = os.path.join(folder, file)
-        if os.path.isfile(path_to_file):
-            validate_file(path_to_file)
-            
 root = tk.Tk()
-root.title("Link Validator Tool")
+root.title("Link Validator")
+root.geometry("600x400")
 
-upload_file_button = tk.Button(root, text="Upload File", command=upload_file_gui)
-upload_file_button.pack()
+upload_file_btn = tk.Button(root, text="Upload File", command=lambda: upload_file_gui(output_text))
+upload_file_btn.pack(pady=10)
 
-upload_folder_button = tk.Button(root, text="Upload Folder", command=upload_folder_gui)
-upload_folder_button.pack()
+output_text = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=70, height=20)
+output_text.pack(pady=10)
 
 root.mainloop()
-
-# Handle the completion and response
-try:
-    # Add the final result communication
-    pass
-except Exception as e:
-    messagebox.showerror("Error", str(e))
