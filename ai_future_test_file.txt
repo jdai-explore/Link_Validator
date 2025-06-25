@@ -1,0 +1,11 @@
+
+https://openai.com/research
+https://www.nih.gov/news-events/news-releases/artificial-intelligence
+https://tesla.com/autopilot
+https://digital-strategy.ec.europa.eu/en/policies/european-approach-artificial-intelligence
+https://www.ibm.com/quantum-computing
+arxiv.org/ai-safety
+broken-link.economics.gov
+complete-research.papers.ai
+ai-ethics.missing-domain
+one 6 more embedded as descriptive text that will be flagged as invalid URLs by the validator
